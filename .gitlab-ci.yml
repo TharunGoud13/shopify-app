@@ -1,0 +1,178 @@
+#############################################################
+#   Pipeline - Continues Deployment (CD) - Modele Project
+#############################################################
+#require latest node
+
+image: node:20.18.0
+
+# add cache to node_modules for speed
+stages:
+    - build_react_dev
+    - deploy_react_dev
+    - build_react_stage
+    - deploy_react_stage
+    - build_react_prod
+    - deploy_react_prod
+
+
+##########################################################
+#    Start : Build & Deployment GCP Dev
+##########################################################
+
+########## Build Step #########
+
+build_react_dev:
+    stage: build_react_dev
+    image:
+        name: node:20.18.0
+    variables:
+        NODE_ENV: 'development'
+        REACT_BUILD: 'build:gcp-dev'
+    before_script:
+        - npm install
+        - unset CI
+    script:
+        - npm run build
+    artifacts:
+        expire_in: 1 days
+        paths:
+            - '$CI_PROJECT_DIR/build'
+    only:
+        refs:
+            - develop
+
+########## Deployment Step #########
+
+deploy_react_dev:
+    stage: deploy_react_dev
+    image:
+        name: google/cloud-sdk
+    variables:
+        UI_APP_REGION: 'us-central1'
+        UI_APP_NAME: 'gleaners-polaris-ui-gcp-dev'
+        GCP_PROJECT_ID_DEV: 'om-dev-digital-n-g6h6'
+    services:
+        - docker:dind
+    script:
+        - echo $GCP_SERVICE_KEY  > gcloud-service-key.json
+        - gcloud auth activate-service-account --key-file gcloud-service-key.json
+        - gcloud config set project $GCP_PROJECT_ID_DEV
+        - gcloud beta builds submit . --config=$CI_PROJECT_DIR/cloudbuild.yaml --substitutions=_PROJECT_ID=$GCP_PROJECT_ID_DEV,_APP_NAME=$UI_APP_NAME,_APP_REGION=$UI_APP_REGION
+    dependencies:
+        - build_react_dev
+    tags:
+        - Linux
+    only:
+        refs:
+            - develop
+
+##########################################################
+#    End : Build & Deployment GCP Dev
+##########################################################
+##########################################################
+#    Start : Build & Deployment GCP Stage
+##########################################################
+
+build_react_stage:
+    stage: build_react_stage
+    image:
+        name: node:20.18.0
+    variables:
+        NODE_ENV: 'staging'
+        REACT_BUILD: 'build:gcp-stg'
+    before_script:
+        - npm install
+        - unset CI
+
+    script:
+        - npm run build
+    artifacts:
+        expire_in: 1 days
+        paths:
+            - '$CI_PROJECT_DIR/build'
+    only:
+        refs:
+            - stage
+################# deployment stage
+deploy_react_stage:
+    stage: deploy_react_stage
+    image:
+        name: google/cloud-sdk
+        pull_policy: if-not-present
+
+    variables:
+        UI_APP_REGION: 'us-central1'
+        UI_APP_NAME: 'gleaners-polaris-ui-stg'
+        GCP_PROJECT_ID_STAGE: 'om-stg-digital-n-vc6k'
+    services:
+        - docker:dind
+    script:
+        - echo $GCP_SERVICE_KEY  > gcloud-service-key.json
+        - gcloud auth activate-service-account --key-file gcloud-service-key.json
+        - gcloud config set project $GCP_PROJECT_ID_STAGE
+        - gcloud beta builds submit . --config=$CI_PROJECT_DIR/cloudbuild.yaml --substitutions=_PROJECT_ID=$GCP_PROJECT_ID_STAGE,_APP_NAME=$UI_APP_NAME,_APP_REGION=$UI_APP_REGION
+    dependencies:
+        - build_react_stage
+    when: manual
+    tags:
+        - Linux
+    only:
+        refs:
+            - stage
+##########################################################
+#    End : Build & Deployment GCP Stage
+##########################################################
+##########################################################
+#    Start : Build & Deployment GCP Production
+##########################################################
+
+build_react_production:
+    image:
+        name: node:20.18.0
+        pull_policy: if-not-present
+    stage: build_react_prod
+    variables:
+        NODE_ENV: 'production'
+        REACT_BUILD: 'build:gcp-production'
+    before_script:
+        - npm install
+        - npm install -g env-cmd
+        - unset CI
+
+    script:
+        - npm run build
+    artifacts:
+        expire_in: 1 days
+        paths:
+            - '$CI_PROJECT_DIR/build'
+    only:
+        refs:
+            - main
+################# deployment production
+deploy_react_production:
+    stage: deploy_react_prod
+    image:
+        name: google/cloud-sdk
+        pull_policy: if-not-present
+    variables:
+        UI_APP_REGION: 'us-east5'
+        UI_APP_NAME: 'gleaners-polaris-ui-prod'
+        GCP_PROJECT_ID_PROD: 'om-prod-digital-p-ddwk'
+    services:
+        - docker:dind
+    script:
+        - echo $GCP_SERVICE_KEY  > gcloud-service-key.json
+        - gcloud auth activate-service-account --key-file gcloud-service-key.json
+        - gcloud config set project $GCP_PROJECT_ID_PROD
+        - gcloud beta builds submit . --config=$CI_PROJECT_DIR/cloudbuild.yaml --substitutions=_PROJECT_ID=$GCP_PROJECT_ID_PROD,_APP_NAME=$UI_APP_NAME,_APP_REGION=$UI_APP_REGION
+    dependencies:
+        - build_react_production
+    when: manual
+    tags:
+        - Linux
+    only:
+        refs:
+            - main
+##########################################################
+#    End : Build & Deployment GCP Production
+##########################################################

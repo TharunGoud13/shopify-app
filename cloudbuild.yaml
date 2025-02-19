@@ -1,0 +1,40 @@
+# File: cloudbuild.yaml
+steps:
+    # build the container image
+    - name: 'gcr.io/cloud-builders/docker'
+      args:
+          [
+              'buildx',
+              'build',
+              '--platform=linux/amd64',
+              '-t',
+              'gcr.io/${_PROJECT_ID}/${_APP_NAME}',
+              '.',
+          ]
+          # push the container image
+    - name: 'gcr.io/cloud-builders/docker'
+      args: ['push', 'gcr.io/${_PROJECT_ID}/${_APP_NAME}']
+      # deploy to Cloud Run
+    - name: 'gcr.io/cloud-builders/gcloud'
+      args:
+          [
+              'run',
+              'deploy',
+              '${_APP_NAME}',
+              '--image',
+              'gcr.io/${_PROJECT_ID}/${_APP_NAME}',
+              '--region',
+              '${_APP_REGION}',
+              '--platform',
+              'managed',
+              '--allow-unauthenticated',
+              '--memory', '4Gi',
+               '--min-instances','2',
+               '--cpu', '6',
+               '--cpu-boost', '--no-cpu-throttling',
+               '--concurrency', '500'
+               #'--update-env-vars SHOPIFY_API_KEY=1c974c78e409e96077a453f85d59a83a,SHOPIFY_API_SECRET=a3a8f49a1c0283cf177daada7b86bade,SHOPIFY_APP_URL=https://remix-app-537593559755.europe-west1.run.app',
+
+          ]
+options:
+    logging: CLOUD_LOGGING_ONLY

@@ -1,0 +1,18 @@
+.zipcodeitems .deleteZipCode {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+.zipcodeitems .deleteZipCode button {
+    width: 100%;
+}
+@media (min-width: 768px) {
+    .zipcodeitems .deleteZipCode button {
+        padding: 6px;
+    }
+    .zipcodeitems .deleteZipCode span.text {
+        display: none;
+    }
+}
